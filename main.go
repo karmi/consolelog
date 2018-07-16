@@ -16,7 +16,7 @@ func main() {
 		With().
 		Timestamp().
 		Int("pid", 37556).
-		// Caller().
+		Caller().
 		Logger()
 
 	// https://raw.githubusercontent.com/rs/zerolog/master/pretty.png
