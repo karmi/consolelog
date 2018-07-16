@@ -10,11 +10,20 @@ import (
 	"strings"
 	"time"
 
+	"github.com/fatih/color"
 	"github.com/rs/zerolog"
 )
 
 const (
 	defaultTimeFormat = time.Kitchen
+)
+
+var (
+	bold   = color.New(color.Bold).SprintFunc()
+	red    = color.New(color.FgRed).SprintFunc()
+	green  = color.New(color.FgGreen).SprintFunc()
+	yellow = color.New(color.FgYellow).SprintFunc()
+	faint  = color.New(color.Faint).SprintFunc()
 )
 
 // ConsoleWriter parses the JSON input and writes an ANSI-colorized output to Out.
@@ -67,33 +76,33 @@ func (w ConsoleWriter) writeTimestamp(evt event, buf *bytes.Buffer) {
 			t = ts.Format(w.TimeFormat)
 		}
 	}
-	fmt.Fprintf(buf, "\x1b[2m%s\x1b[0m", t)
+	buf.WriteString(faint(t))
 }
 
 func (w ConsoleWriter) writeLevel(evt event, buf *bytes.Buffer) {
 	var l string
-	var f string
 	if ll, ok := evt[zerolog.LevelFieldName].(string); ok {
 		switch ll {
 		case "debug":
-			f = "33"
-			l = "DBG"
+			l = yellow("DBG")
 		case "info":
-			f = "32"
-			l = "INF"
+			l = green("INF")
 		case "warn":
-			f = "31"
-			l = "WRN"
-		case "error", "fatal", "panic":
-			f = "31;1"
-			l = "ERR"
+			l = red("WRN")
+		case "error":
+			l = bold(red("ERR"))
+		case "fatal":
+			l = bold(red("FTL"))
+		case "panic":
+			l = bold(red("PNC"))
 		default:
-			f = "0"
+			l = bold("N/A")
 		}
 	} else {
-		l = strings.ToUpper(fmt.Sprintf("%s", evt[zerolog.LevelFieldName]))[0:4]
+		l = strings.ToUpper(fmt.Sprintf("%s", evt[zerolog.LevelFieldName]))[0:3]
 	}
-	fmt.Fprintf(buf, " \x1b[%sm%s\x1b[0m", f, l)
+	buf.WriteByte(' ')
+	buf.WriteString(l)
 }
 
 func (w ConsoleWriter) writeComponent(evt event, buf *bytes.Buffer) {
@@ -102,7 +111,10 @@ func (w ConsoleWriter) writeComponent(evt event, buf *bytes.Buffer) {
 		c = cc
 	}
 	if len(c) > 0 {
-		fmt.Fprintf(buf, " [\x1b[1m%s\x1b[0m]", c)
+		buf.WriteByte(' ')
+		buf.WriteString("[")
+		buf.WriteString(bold(c))
+		buf.WriteString("]")
 	}
 }
 
@@ -117,15 +129,17 @@ func (w ConsoleWriter) writeCaller(evt event, buf *bytes.Buffer) {
 			c = strings.TrimPrefix(c, cwd)
 			c = strings.TrimPrefix(c, "/")
 		}
-		fmt.Fprintf(buf, " \x1b[2m\x1b[0m\x1b[1m%s\x1b[2m >\x1b[0m", c)
+		buf.WriteByte(' ')
+		buf.WriteString(bold(c))
+		buf.WriteString(faint(" >"))
 	}
 }
 
 func (w ConsoleWriter) writeMessage(evt event, buf *bytes.Buffer) {
 	var m string
 	m = fmt.Sprintf("%s", evt[zerolog.MessageFieldName])
-
-	fmt.Fprintf(buf, " \x1b[0m%s\x1b[0m", m)
+	buf.WriteByte(' ')
+	buf.WriteString(m)
 }
 
 func (w ConsoleWriter) writeFields(evt event, buf *bytes.Buffer) {
@@ -143,7 +157,8 @@ func (w ConsoleWriter) writeFields(evt event, buf *bytes.Buffer) {
 		buf.WriteByte(' ')
 	}
 	for _, field := range fields {
-		fmt.Fprintf(buf, "\x1b[2m%s=\x1b[0m", field)
+		buf.WriteString(faint(field))
+		buf.WriteString(faint("="))
 		fmt.Fprintf(buf, "%s ", evt[field])
 	}
 }
