@@ -99,7 +99,7 @@ func (w ConsoleWriter) Write(p []byte) (n int, err error) {
 }
 
 func (w ConsoleWriter) writeTimestamp(evt event, buf *bytes.Buffer) {
-	buf.WriteString(w.Formatter("timestamp")(evt[zerolog.TimestampFieldName]))
+	buf.WriteString(w.Formatter("time")(evt[zerolog.TimestampFieldName]))
 }
 
 func (w ConsoleWriter) writeLevel(evt event, buf *bytes.Buffer) {
@@ -188,7 +188,7 @@ func (w ConsoleWriter) writeFields(evt event, buf *bytes.Buffer) {
 
 func (w ConsoleWriter) setDefaultFormatters() {
 	w.SetFormatter(
-		"timestamp", func(i interface{}) string {
+		"time", func(i interface{}) string {
 			var t string
 			if tt, ok := i.(string); ok {
 				ts, err := time.Parse(time.RFC3339, tt)

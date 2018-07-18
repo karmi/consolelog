@@ -66,9 +66,6 @@ func main() {
 		Str("host", "localhost:4932").
 		Msg("Database connection lost")
 
-	output.SetFormatter("timestamp", func(i interface{}) string {
-		return "HELLOOO"
-	})
+	output.SetFormatter("time", func(i interface{}) string { return "HELLOOO" })
 	defaultLogger.Debug().Msg("Custom date format")
-
 }
