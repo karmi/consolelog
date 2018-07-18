@@ -103,66 +103,19 @@ func (w ConsoleWriter) writeTimestamp(evt event, buf *bytes.Buffer) {
 }
 
 func (w ConsoleWriter) writeLevel(evt event, buf *bytes.Buffer) {
-	var l string
-	if ll, ok := evt[zerolog.LevelFieldName].(string); ok {
-		switch ll {
-		case "debug":
-			l = yellow("DBG")
-		case "info":
-			l = green("INF")
-		case "warn":
-			l = red("WRN")
-		case "error":
-			l = bold(red("ERR"))
-		case "fatal":
-			l = bold(red("FTL"))
-		case "panic":
-			l = bold(red("PNC"))
-		default:
-			l = bold("N/A")
-		}
-	} else {
-		l = strings.ToUpper(fmt.Sprintf("%s", evt[zerolog.LevelFieldName]))[0:3]
-	}
-	buf.WriteByte(' ')
-	buf.WriteString(l)
+	buf.WriteString(w.Formatter("level")(evt[zerolog.LevelFieldName]))
 }
 
 func (w ConsoleWriter) writeComponent(evt event, buf *bytes.Buffer) {
-	var c string
-	if cc, ok := evt["component"].(string); ok {
-		c = cc
-	}
-	if len(c) > 0 {
-		buf.WriteByte(' ')
-		buf.WriteString("[")
-		buf.WriteString(bold(c))
-		buf.WriteString("]")
-	}
+	buf.WriteString(w.Formatter("component")(evt["component"]))
 }
 
 func (w ConsoleWriter) writeCaller(evt event, buf *bytes.Buffer) {
-	var c string
-	if cc, ok := evt[zerolog.CallerFieldName].(string); ok {
-		c = cc
-	}
-	if len(c) > 0 {
-		cwd, err := os.Getwd()
-		if err == nil {
-			c = strings.TrimPrefix(c, cwd)
-			c = strings.TrimPrefix(c, "/")
-		}
-		buf.WriteByte(' ')
-		buf.WriteString(bold(c))
-		buf.WriteString(faint(" >"))
-	}
+	buf.WriteString(w.Formatter(zerolog.CallerFieldName)(evt["caller"]))
 }
 
 func (w ConsoleWriter) writeMessage(evt event, buf *bytes.Buffer) {
-	var m string
-	m = fmt.Sprintf("%s", evt[zerolog.MessageFieldName])
-	buf.WriteByte(' ')
-	buf.WriteString(m)
+	buf.WriteString(w.Formatter(zerolog.MessageFieldName)(evt[zerolog.MessageFieldName]))
 }
 
 func (w ConsoleWriter) writeFields(evt event, buf *bytes.Buffer) {
@@ -180,15 +133,17 @@ func (w ConsoleWriter) writeFields(evt event, buf *bytes.Buffer) {
 		buf.WriteByte(' ')
 	}
 	for _, field := range fields {
-		buf.WriteString(faint(field))
-		buf.WriteString(faint("="))
-		fmt.Fprintf(buf, "%s ", evt[field])
+		buf.WriteString(w.Formatter("field_name")(field))
+		buf.WriteString(w.Formatter("field_value")(evt[field]))
 	}
 }
 
 func (w ConsoleWriter) setDefaultFormatters() {
+	// Timestamp
+	//
 	w.SetFormatter(
-		"time", func(i interface{}) string {
+		zerolog.TimestampFieldName,
+		func(i interface{}) string {
 			var t string
 			if tt, ok := i.(string); ok {
 				ts, err := time.Parse(time.RFC3339, tt)
@@ -199,5 +154,89 @@ func (w ConsoleWriter) setDefaultFormatters() {
 				}
 			}
 			return faint(t)
+		})
+
+	// Level
+	//
+	w.SetFormatter(
+		zerolog.LevelFieldName,
+		func(i interface{}) string {
+			var l string
+			if ll, ok := i.(string); ok {
+				switch ll {
+				case "debug":
+					l = yellow("DBG")
+				case "info":
+					l = green("INF")
+				case "warn":
+					l = red("WRN")
+				case "error":
+					l = bold(red("ERR"))
+				case "fatal":
+					l = bold(red("FTL"))
+				case "panic":
+					l = bold(red("PNC"))
+				default:
+					l = bold("N/A")
+				}
+			} else {
+				l = strings.ToUpper(fmt.Sprintf("%s", i))[0:3]
+			}
+			return " " + l
+		})
+
+	// Caller
+	//
+	w.SetFormatter(
+		zerolog.CallerFieldName,
+		func(i interface{}) string {
+			var c string
+			if cc, ok := i.(string); ok {
+				c = cc
+			}
+			if len(c) > 0 {
+				cwd, err := os.Getwd()
+				if err == nil {
+					c = strings.TrimPrefix(c, cwd)
+					c = strings.TrimPrefix(c, "/")
+				}
+				c = " " + bold(c) + faint(" >")
+				return bold(c)
+			}
+			return c
+		})
+
+	// Message
+	//
+	w.SetFormatter(
+		zerolog.MessageFieldName,
+		func(i interface{}) string { return fmt.Sprintf(" %s", i) })
+
+	// Component
+	//
+	w.SetFormatter(
+		"component", func(i interface{}) string {
+			var c string
+			if cc, ok := i.(string); ok {
+				c = cc
+			}
+			if len(c) > 0 {
+				return " [" + bold(c) + "]"
+			}
+			return c
+		})
+
+	// Field name
+	//
+	w.SetFormatter(
+		"field_name", func(i interface{}) string {
+			return faint(fmt.Sprintf("%s=", i))
+		})
+
+	// Field value
+	//
+	w.SetFormatter(
+		"field_value", func(i interface{}) string {
+			return fmt.Sprintf("%s ", i)
 		})
 }
