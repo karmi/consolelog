@@ -24,25 +24,57 @@ var (
 	green  = color.New(color.FgGreen).SprintFunc()
 	yellow = color.New(color.FgYellow).SprintFunc()
 	faint  = color.New(color.Faint).SprintFunc()
+
+	defaultOutput    = os.Stderr
+	defaultFormatter = func(i interface{}) string { return fmt.Sprintf("%s", i) }
 )
 
 // ConsoleWriter parses the JSON input and writes an ANSI-colorized output to Out.
 //
-// It is adapted from the original zerolog.ConsoleWriter;
-// see: https://github.com/rs/zerolog/blob/master/console.go
+// It is adapted from the zerolog.ConsoleWriter;
+// see: https://github.com/rs/zerolog/blob/master/console.go.
 //
 type ConsoleWriter struct {
 	Out        io.Writer
 	TimeFormat string
+	formatters map[string]Formatter
 }
+
+// Formatter transforms the input into a string.
+//
+type Formatter func(interface{}) string
 
 type event map[string]interface{}
 
-func (w ConsoleWriter) Write(p []byte) (n int, err error) {
-	if w.TimeFormat == "" {
-		w.TimeFormat = defaultTimeFormat
-	}
+// NewConsoleWriter creates and initializes a new ConsoleWriter.
+//
+func NewConsoleWriter() ConsoleWriter {
+	w := ConsoleWriter{Out: defaultOutput, TimeFormat: defaultTimeFormat}
+	w.formatters = make(map[string]Formatter)
 
+	w.setDefaultFormatters()
+
+	return w
+}
+
+// Formatter returns a formatter by id or the default formatter if none is found.
+//
+func (w ConsoleWriter) Formatter(id string) Formatter {
+	if f, ok := w.formatters[id]; ok {
+		return f
+	}
+	return defaultFormatter
+}
+
+// SetFormatter registers a formatter function by id.
+//
+func (w ConsoleWriter) SetFormatter(id string, f Formatter) {
+	w.formatters[id] = f
+}
+
+// Write appends the output to Out.
+//
+func (w ConsoleWriter) Write(p []byte) (n int, err error) {
 	var buf bytes.Buffer
 
 	var evt event
@@ -67,16 +99,7 @@ func (w ConsoleWriter) Write(p []byte) (n int, err error) {
 }
 
 func (w ConsoleWriter) writeTimestamp(evt event, buf *bytes.Buffer) {
-	var t string
-	if tt, ok := evt[zerolog.TimestampFieldName].(string); ok {
-		ts, err := time.Parse(time.RFC3339, tt)
-		if err != nil {
-			t = tt
-		} else {
-			t = ts.Format(w.TimeFormat)
-		}
-	}
-	buf.WriteString(faint(t))
+	buf.WriteString(w.Formatter("timestamp")(evt[zerolog.TimestampFieldName]))
 }
 
 func (w ConsoleWriter) writeLevel(evt event, buf *bytes.Buffer) {
@@ -161,4 +184,20 @@ func (w ConsoleWriter) writeFields(evt event, buf *bytes.Buffer) {
 		buf.WriteString(faint("="))
 		fmt.Fprintf(buf, "%s ", evt[field])
 	}
+}
+
+func (w ConsoleWriter) setDefaultFormatters() {
+	w.SetFormatter(
+		"timestamp", func(i interface{}) string {
+			var t string
+			if tt, ok := i.(string); ok {
+				ts, err := time.Parse(time.RFC3339, tt)
+				if err != nil {
+					t = tt
+				} else {
+					t = ts.Format(w.TimeFormat)
+				}
+			}
+			return faint(t)
+		})
 }

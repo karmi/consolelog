@@ -2,7 +2,6 @@ package main
 
 import (
 	"errors"
-	"os"
 
 	"github.com/rs/zerolog"
 
@@ -10,7 +9,7 @@ import (
 )
 
 func main() {
-	output := consolelog.ConsoleWriter{Out: os.Stderr}
+	output := consolelog.NewConsoleWriter()
 
 	defaultLogger := zerolog.New(output).
 		With().
@@ -66,4 +65,10 @@ func main() {
 		Str("database", "myapp").
 		Str("host", "localhost:4932").
 		Msg("Database connection lost")
+
+	output.SetFormatter("timestamp", func(i interface{}) string {
+		return "HELLOOO"
+	})
+	defaultLogger.Debug().Msg("Custom date format")
+
 }
