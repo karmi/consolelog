@@ -2,6 +2,7 @@ package consolelog_test
 
 import (
 	"bytes"
+	"os"
 	"testing"
 	"time"
 
@@ -51,6 +52,50 @@ func TestConsolelog(t *testing.T) {
 		}
 
 		expectedOutput := "12:00AM INF Foobar\n"
+		actualOutput := out.String()
+		if actualOutput != expectedOutput {
+			t.Errorf("Unexpected output %q, want: %q", actualOutput, expectedOutput)
+		}
+	})
+
+	t.Run("Write fields", func(t *testing.T) {
+		var out bytes.Buffer
+		w := consolelog.NewConsoleWriter()
+		w.Out = &out
+
+		d := time.Unix(0, 0).UTC().Format(time.RFC3339)
+		_, err := w.Write([]byte(`{"time" : "` + d + `", "level" : "debug", "message" : "Foobar", "foo" : "bar"}`))
+		if err != nil {
+			t.Errorf("Unexpected error when writing output: %s", err)
+		}
+
+		expectedOutput := "12:00AM DBG Foobar foo=bar\n"
+		actualOutput := out.String()
+		if actualOutput != expectedOutput {
+			t.Errorf("Unexpected output %q, want: %q", actualOutput, expectedOutput)
+		}
+	})
+
+	t.Run("Write caller", func(t *testing.T) {
+		var out bytes.Buffer
+		w := consolelog.NewConsoleWriter()
+		w.Out = &out
+
+		cwd, err := os.Getwd()
+		if err != nil {
+			t.Fatalf("Cannot get working directory: %s", err)
+		}
+
+		d := time.Unix(0, 0).UTC().Format(time.RFC3339)
+		evt := `{"time" : "` + d + `", "level" : "debug", "message" : "Foobar", "foo" : "bar", "caller" : "` + cwd + `/foo/bar.go"}`
+		// t.Log(evt)
+
+		_, err = w.Write([]byte(evt))
+		if err != nil {
+			t.Errorf("Unexpected error when writing output: %s", err)
+		}
+
+		expectedOutput := "12:00AM DBG foo/bar.go > Foobar foo=bar\n"
 		actualOutput := out.String()
 		if actualOutput != expectedOutput {
 			t.Errorf("Unexpected output %q, want: %q", actualOutput, expectedOutput)

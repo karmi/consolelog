@@ -25,8 +25,15 @@ var (
 	yellow = color.New(color.FgYellow).SprintFunc()
 	faint  = color.New(color.Faint).SprintFunc()
 
-	defaultOutput    = os.Stderr
-	defaultFormatter = func(i interface{}) string { return fmt.Sprintf("%s", i) }
+	defaultOutput     = os.Stderr
+	defaultFormatter  = func(i interface{}) string { return fmt.Sprintf("%s", i) }
+	defaultPartsOrder = []string{
+		zerolog.TimestampFieldName,
+		zerolog.LevelFieldName,
+		zerolog.CallerFieldName,
+		"component",
+		zerolog.MessageFieldName,
+	}
 )
 
 // ConsoleWriter parses the JSON input and writes an ANSI-colorized output to Out.
@@ -37,6 +44,7 @@ var (
 type ConsoleWriter struct {
 	Out        io.Writer
 	TimeFormat string
+	PartsOrder []string
 	formatters map[string]Formatter
 }
 
@@ -49,7 +57,7 @@ type event map[string]interface{}
 // NewConsoleWriter creates and initializes a new ConsoleWriter.
 //
 func NewConsoleWriter() ConsoleWriter {
-	w := ConsoleWriter{Out: defaultOutput, TimeFormat: defaultTimeFormat}
+	w := ConsoleWriter{Out: defaultOutput, TimeFormat: defaultTimeFormat, PartsOrder: defaultPartsOrder}
 	w.formatters = make(map[string]Formatter)
 
 	w.setDefaultFormatters()
@@ -85,12 +93,10 @@ func (w ConsoleWriter) Write(p []byte) (n int, err error) {
 		return n, fmt.Errorf("cannot decode event: %s", err)
 	}
 
-	w.writeTimestamp(evt, &buf)
-	w.writeLevel(evt, &buf)
-	w.writeComponent(evt, &buf)
-	w.writeCaller(evt, &buf)
+	for _, p := range w.PartsOrder {
+		w.writePart(&buf, evt, p)
+	}
 
-	w.writeMessage(evt, &buf)
 	w.writeFields(evt, &buf)
 
 	buf.WriteByte('\n')
@@ -98,24 +104,14 @@ func (w ConsoleWriter) Write(p []byte) (n int, err error) {
 	return len(p), nil
 }
 
-func (w ConsoleWriter) writeTimestamp(evt event, buf *bytes.Buffer) {
-	buf.WriteString(w.Formatter("time")(evt[zerolog.TimestampFieldName]))
-}
-
-func (w ConsoleWriter) writeLevel(evt event, buf *bytes.Buffer) {
-	buf.WriteString(w.Formatter("level")(evt[zerolog.LevelFieldName]))
-}
-
-func (w ConsoleWriter) writeComponent(evt event, buf *bytes.Buffer) {
-	buf.WriteString(w.Formatter("component")(evt["component"]))
-}
-
-func (w ConsoleWriter) writeCaller(evt event, buf *bytes.Buffer) {
-	buf.WriteString(w.Formatter(zerolog.CallerFieldName)(evt["caller"]))
-}
-
-func (w ConsoleWriter) writeMessage(evt event, buf *bytes.Buffer) {
-	buf.WriteString(w.Formatter(zerolog.MessageFieldName)(evt[zerolog.MessageFieldName]))
+func (w ConsoleWriter) writePart(buf *bytes.Buffer, evt event, p string) {
+	var s = w.Formatter(p)(evt[p])
+	if len(s) > 0 {
+		buf.WriteString(s)
+		if p != w.PartsOrder[len(w.PartsOrder)-1] { // Skip space for last part
+			buf.WriteByte(' ')
+		}
+	}
 }
 
 func (w ConsoleWriter) writeFields(evt event, buf *bytes.Buffer) {
@@ -132,9 +128,13 @@ func (w ConsoleWriter) writeFields(evt event, buf *bytes.Buffer) {
 	if len(fields) > 0 {
 		buf.WriteByte(' ')
 	}
-	for _, field := range fields {
+
+	for i, field := range fields {
 		buf.WriteString(w.Formatter("field_name")(field))
 		buf.WriteString(w.Formatter("field_value")(evt[field]))
+		if i < len(fields)-1 { // Skip space for last field
+			buf.WriteByte(' ')
+		}
 	}
 }
 
@@ -182,7 +182,7 @@ func (w ConsoleWriter) setDefaultFormatters() {
 			} else {
 				l = strings.ToUpper(fmt.Sprintf("%s", i))[0:3]
 			}
-			return " " + l
+			return l
 		})
 
 	// Caller
@@ -200,8 +200,7 @@ func (w ConsoleWriter) setDefaultFormatters() {
 					c = strings.TrimPrefix(c, cwd)
 					c = strings.TrimPrefix(c, "/")
 				}
-				c = " " + bold(c) + faint(" >")
-				return bold(c)
+				c = bold(c) + faint(" >")
 			}
 			return c
 		})
@@ -210,7 +209,7 @@ func (w ConsoleWriter) setDefaultFormatters() {
 	//
 	w.SetFormatter(
 		zerolog.MessageFieldName,
-		func(i interface{}) string { return fmt.Sprintf(" %s", i) })
+		func(i interface{}) string { return fmt.Sprintf("%s", i) })
 
 	// Component
 	//
@@ -221,7 +220,7 @@ func (w ConsoleWriter) setDefaultFormatters() {
 				c = cc
 			}
 			if len(c) > 0 {
-				return " [" + bold(c) + "]"
+				return "[" + bold(c) + "]"
 			}
 			return c
 		})
@@ -237,6 +236,6 @@ func (w ConsoleWriter) setDefaultFormatters() {
 	//
 	w.SetFormatter(
 		"field_value", func(i interface{}) string {
-			return fmt.Sprintf("%s ", i)
+			return fmt.Sprintf("%s", i)
 		})
 }
