@@ -27,7 +27,6 @@ var (
 	yellow = color.New(color.FgYellow).SprintFunc()
 	faint  = color.New(color.Faint).SprintFunc()
 
-	defaultOutput     = os.Stderr
 	defaultFormatter  = func(i interface{}) string { return fmt.Sprintf("%s", i) }
 	defaultPartsOrder = []string{
 		zerolog.TimestampFieldName,
@@ -58,7 +57,7 @@ type event map[string]interface{}
 // NewConsoleWriter creates and initializes a new ConsoleWriter.
 //
 func NewConsoleWriter(options ...func(w *ConsoleWriter)) ConsoleWriter {
-	w := ConsoleWriter{Out: defaultOutput, TimeFormat: defaultTimeFormat, PartsOrder: defaultPartsOrder}
+	w := ConsoleWriter{Out: os.Stdout, TimeFormat: defaultTimeFormat, PartsOrder: defaultPartsOrder}
 	w.formatters = make(map[string]Formatter)
 
 	w.setDefaultFormatters()

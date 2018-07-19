@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/karmi/consolelog/consolelog"
+	"github.com/karmi/consolelog"
 )
 
 func TestConsolelog(t *testing.T) {
