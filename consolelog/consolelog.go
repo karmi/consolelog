@@ -1,3 +1,5 @@
+// Package consolelog provides a writer for the "github.com/rs/zerolog" package.
+//
 package consolelog
 
 import (
