@@ -101,4 +101,25 @@ func TestConsolelog(t *testing.T) {
 			t.Errorf("Unexpected output %q, want: %q", actualOutput, expectedOutput)
 		}
 	})
+
+	t.Run("Write error", func(t *testing.T) {
+		var out bytes.Buffer
+		w := consolelog.NewConsoleWriter()
+		w.Out = &out
+
+		d := time.Unix(0, 0).UTC().Format(time.RFC3339)
+		evt := `{"time" : "` + d + `", "level" : "error", "message" : "Foobar", "aaa" : "bbb", "error" : "Error"}`
+		// t.Log(evt)
+
+		_, err := w.Write([]byte(evt))
+		if err != nil {
+			t.Errorf("Unexpected error when writing output: %s", err)
+		}
+
+		expectedOutput := "12:00AM ERR Foobar error=Error aaa=bbb\n"
+		actualOutput := out.String()
+		if actualOutput != expectedOutput {
+			t.Errorf("Unexpected output %q, want: %q", actualOutput, expectedOutput)
+		}
+	})
 }

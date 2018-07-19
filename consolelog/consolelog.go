@@ -128,9 +128,34 @@ func (w ConsoleWriter) writeFields(evt event, buf *bytes.Buffer) {
 		buf.WriteByte(' ')
 	}
 
+	// Move the "error" field to front
+	//
+	ei := sort.Search(len(fields), func(i int) bool { return fields[i] >= zerolog.ErrorFieldName })
+	if ei < len(fields) && fields[ei] == zerolog.ErrorFieldName {
+		fields[ei] = ""
+		fields = append([]string{zerolog.ErrorFieldName}, fields...)
+		var xfields = make([]string, 0, len(fields))
+		for _, field := range fields {
+			if field == "" { // Skip empty fields
+				continue
+			}
+			xfields = append(xfields, field)
+		}
+		fields = xfields
+	}
+
 	for i, field := range fields {
-		buf.WriteString(w.Formatter("field_name")(field))
-		buf.WriteString(w.Formatter("field_value")(evt[field]))
+		var fn Formatter
+		var fv Formatter
+		if _, ok := w.formatters[field+"_field_name"]; ok {
+			fn = w.Formatter(field + "_field_name")
+			fv = w.Formatter(field + "_field_value")
+		} else {
+			fn = w.Formatter("field_name")
+			fv = w.Formatter("field_value")
+		}
+		buf.WriteString(fn(field))
+		buf.WriteString(fv(evt[field]))
 		if i < len(fields)-1 { // Skip space for last field
 			buf.WriteByte(' ')
 		}
@@ -222,5 +247,15 @@ func (w ConsoleWriter) setDefaultFormatters() {
 	w.SetFormatter(
 		"field_value", func(i interface{}) string {
 			return fmt.Sprintf("%s", i)
+		})
+
+	// Errors
+	w.SetFormatter(
+		"error_field_name", func(i interface{}) string {
+			return faint(red(fmt.Sprintf("%s=", i)))
+		})
+	w.SetFormatter(
+		"error_field_value", func(i interface{}) string {
+			return bold(red(fmt.Sprintf("%s", i)))
 		})
 }
