@@ -2,6 +2,7 @@ package consolelog_test
 
 import (
 	"bytes"
+	"io/ioutil"
 	"os"
 	"testing"
 	"time"
@@ -136,4 +137,18 @@ func TestConsolelog(t *testing.T) {
 			t.Errorf("Unexpected output %q, want: %q", actualOutput, expectedOutput)
 		}
 	})
+}
+
+func BenchmarkConsolelog(b *testing.B) {
+	b.ResetTimer()
+	b.ReportAllocs()
+
+	var msg = []byte(`{"level" : "info", "foo" : "bar"}`)
+
+	w := consolelog.NewConsoleWriter()
+	w.Out = ioutil.Discard
+
+	for i := 0; i < b.N; i++ {
+		w.Write(msg)
+	}
 }
