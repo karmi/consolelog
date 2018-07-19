@@ -31,7 +31,6 @@ var (
 		zerolog.TimestampFieldName,
 		zerolog.LevelFieldName,
 		zerolog.CallerFieldName,
-		"component",
 		zerolog.MessageFieldName,
 	}
 )
@@ -118,7 +117,7 @@ func (w ConsoleWriter) writeFields(evt event, buf *bytes.Buffer) {
 	var fields = make([]string, 0, len(evt))
 	for field := range evt {
 		switch field {
-		case zerolog.LevelFieldName, zerolog.TimestampFieldName, zerolog.MessageFieldName, zerolog.CallerFieldName, "component":
+		case zerolog.LevelFieldName, zerolog.TimestampFieldName, zerolog.MessageFieldName, zerolog.CallerFieldName:
 			continue
 		}
 		fields = append(fields, field)
@@ -210,20 +209,6 @@ func (w ConsoleWriter) setDefaultFormatters() {
 	w.SetFormatter(
 		zerolog.MessageFieldName,
 		func(i interface{}) string { return fmt.Sprintf("%s", i) })
-
-	// Component
-	//
-	w.SetFormatter(
-		"component", func(i interface{}) string {
-			var c string
-			if cc, ok := i.(string); ok {
-				c = cc
-			}
-			if len(c) > 0 {
-				return "[" + bold(c) + "]"
-			}
-			return c
-		})
 
 	// Field name
 	//
