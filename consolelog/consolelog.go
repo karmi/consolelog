@@ -57,11 +57,15 @@ type event map[string]interface{}
 
 // NewConsoleWriter creates and initializes a new ConsoleWriter.
 //
-func NewConsoleWriter() ConsoleWriter {
+func NewConsoleWriter(options ...func(w *ConsoleWriter)) ConsoleWriter {
 	w := ConsoleWriter{Out: defaultOutput, TimeFormat: defaultTimeFormat, PartsOrder: defaultPartsOrder}
 	w.formatters = make(map[string]Formatter)
 
 	w.setDefaultFormatters()
+
+	for _, opt := range options {
+		opt(&w)
+	}
 
 	return w
 }
@@ -164,7 +168,7 @@ func (w ConsoleWriter) writeFields(evt event, buf *bytes.Buffer) {
 	}
 }
 
-func (w ConsoleWriter) setDefaultFormatters() {
+func (w *ConsoleWriter) setDefaultFormatters() {
 	// Timestamp
 	//
 	w.SetFormatter(

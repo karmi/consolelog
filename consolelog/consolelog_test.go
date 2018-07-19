@@ -40,6 +40,20 @@ func TestConsolelog(t *testing.T) {
 		}
 	})
 
+	t.Run("New with options", func(t *testing.T) {
+		w := consolelog.NewConsoleWriter(
+			func(w *consolelog.ConsoleWriter) {
+				w.SetFormatter("time", func(i interface{}) string { return "FOOBAR" })
+			},
+		)
+
+		d := time.Unix(0, 0).UTC().Format(time.RFC3339)
+		o := w.Formatter("time")(d)
+		if o != "FOOBAR" {
+			t.Errorf(`Unexpected output from custom "time" formatter: %s`, o)
+		}
+	})
+
 	t.Run("Write", func(t *testing.T) {
 		var out bytes.Buffer
 		w := consolelog.NewConsoleWriter()

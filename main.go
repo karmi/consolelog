@@ -2,6 +2,9 @@ package main
 
 import (
 	"errors"
+	"fmt"
+	"strings"
+	"time"
 
 	"github.com/rs/zerolog"
 
@@ -65,4 +68,36 @@ func main() {
 		Str("database", "myapp").
 		Str("host", "localhost:4932").
 		Msg("Database connection lost")
+
+	customOutput := consolelog.NewConsoleWriter(
+		func(w *consolelog.ConsoleWriter) {
+			w.PartsOrder = []string{
+				zerolog.TimestampFieldName,
+				zerolog.LevelFieldName,
+				zerolog.CallerFieldName,
+				zerolog.MessageFieldName,
+			}
+		},
+		func(w *consolelog.ConsoleWriter) {
+			w.TimeFormat = time.RFC822
+		},
+		func(w *consolelog.ConsoleWriter) {
+			w.SetFormatter(
+				zerolog.CallerFieldName,
+				func(i interface{}) string { return fmt.Sprintf("%s", i) })
+			w.SetFormatter(
+				zerolog.LevelFieldName,
+				func(i interface{}) string { return strings.ToUpper(fmt.Sprintf("%-5s", i)) })
+		},
+	)
+
+	customLogger := zerolog.New(customOutput).
+		With().
+		Timestamp().
+		Caller().
+		Logger()
+	customLogger.
+		Info().
+		Str("foo", "bar").
+		Msg("Custom message")
 }
